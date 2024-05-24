@@ -1,0 +1,29 @@
+{
+    "name": "openai-api-chat-client",
+    "version": "1.0.0",
+    "description": "A chat client using the OpenAI API",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/krzysztofchojka/OpenAI-api-chat-client.git"
+    },
+    "author": "Krzysztof Chojka",
+    "license": "MIT",
+    "dependencies": {
+        "axios": "^1.7.2",
+        "bcrypt": "^5.1.1",
+        "body-parser": "^1.20.2",
+        "express": "^4.19.2",
+        "fs": "^0.0.1-security",
+        "jsonwebtoken": "^9.0.2",
+        "multer": "^1.4.5-lts.1",
+        "path": "^0.12.7",
+        "sequelize": "^6.37.3",
+        "sharp": "^0.33.4",
+        "uuid": "^9.0.1",
+        "ws": "^8.17.0"
+    }
+}

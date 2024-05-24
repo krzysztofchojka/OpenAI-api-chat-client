@@ -6,7 +6,6 @@ const bcrypt = require('bcrypt');
 const { Sequelize, DataTypes } = require('sequelize');
 const axios = require('axios');
 const { sequelize, Conversations, Token, Messages, User } = require('./models'); // Import models
-const { WebSocketServer } = require('ws');
 const path = require('path');
 const WebSocket = require('ws');
 const wsClientManager = require('./wsClientManager');
