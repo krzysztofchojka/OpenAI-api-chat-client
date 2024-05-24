@@ -1,11 +1,10 @@
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const { Token } = require('./models'); // Import models
+const { Token } = require('./models');
 const CONFIG = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 const SECRET_KEY = CONFIG.SECRET_KEY
 const wsClientManager = require('./wsClientManager');
 
-// ======== Websockets =========
 module.exports = function(wss) {
     wss.on('connection', ws => {
         console.log('New client connected');
@@ -15,8 +14,6 @@ module.exports = function(wss) {
                 const parsedMessage = JSON.parse(message);
                 if (parsedMessage.action === 'auth') {
                     const token = parsedMessage.token;
-                    // Verify the token and associate it with the user
-                    // Assuming a function verifyToken exists
                     const userId = await verifyToken(token);
                     if (userId) {
                         ws.userId = userId;
@@ -28,7 +25,6 @@ module.exports = function(wss) {
                     }
                 } else {
                     console.log('Received:', message);
-                    // Echo the received message back to the client
                     ws.send(`Server received: ${message}`);
                 }
             } catch (error) {
@@ -59,7 +55,6 @@ const verifyToken = async (token) => {
       if (!tokenRecord) {
         return null
       }
-      //let username = await User.findByPk(decoded.id);
       let userId = decoded.id;
       return userId;
 

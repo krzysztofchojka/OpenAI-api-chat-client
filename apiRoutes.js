@@ -13,7 +13,6 @@ const wsClientManager = require('./wsClientManager');
 const fs = require('fs');
 const CONFIG = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 
-// Middleware to parse JSON bodies
 router.use(express.json());
 router.use(bodyParser.json());
 
@@ -45,7 +44,6 @@ const checkAccessToken = async (req, res, next) => {
   }
 };
 
-// Token Validation Endpoint
 router.get('/check-token', checkAccessToken, async (req, res) => {
   res.status(200).json({ message: 'Access token is valid' });
 });
@@ -68,8 +66,6 @@ router.post('/conv/create', async (req, res) => {
       memory
     });
 
-    //ws_client_byID.send(`{"action":"new_conversation", "convId":"${newConversation.id}"}`)
-    // Send WebSocket message to all connected clients
     let ws_clients = wsClientManager.getClients();
     ws_clients.forEach(client => {
         if (client.readyState == WebSocket.OPEN && client.userId == userId) {
@@ -109,7 +105,6 @@ router.delete('/conv/delete/:id', async (req, res) => {
 
     await Conversations.destroy({ where: { id: conversationId } });
 
-    // Send WebSocket message to all connected clients
     let ws_clients = wsClientManager.getClients();
     ws_clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN && client.userId === userId) {
@@ -169,7 +164,7 @@ router.post('/message/send', async (req, res) => {
     const userId = tokenRecord.userId;
     const { convId, userMessage, model, image } = req.body;
     let json;
-    // Construct the message object
+
     let messages = [{ role: 'system', content: 'You are a helpful assistant. If user asks you to draw something start your reply EXACTLY like this: ![generate_image]and here write the image prompt for DALLE' }];
     if (image) {
       json = [
@@ -330,7 +325,6 @@ router.get('/hello', async (req, res) => {
   res.status(200).json({ message: 'Hello World!' });
 });
 
-// Registration Endpoint
 router.post('/register', async (req, res) => {
   const { username, password, invitecode } = req.body;
   if (!username || !password) {
@@ -352,7 +346,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login Endpoint
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -372,7 +365,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Logout Endpoint
 router.post('/logout', checkAccessToken, async (req, res) => {
   try {
     const accessToken = req.headers['authorization'].split(' ')[1];
@@ -392,7 +384,6 @@ router.post('/ask', checkAccessToken, async (req, res) => {
       GPTModel = "gpt-4o";
     }
 
-    // Construct the message object
     let messages = [{ role: 'system', content: 'You are a helpful assistant. If user asks you to draw something start your reply EXACTLY like this: ![generate_image]and here write the image prompt for DALLE' }];
     if (image) {
       messages.push(

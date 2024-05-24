@@ -57,7 +57,6 @@ function runConfigurator() {
     fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
     console.log('Configuration saved to config.json');
 
-    // Exit the process after creating config.json
     process.exit(0);
   });
 }

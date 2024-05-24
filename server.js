@@ -4,7 +4,6 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 const WebSocket = require('ws');
-var ws_clients = []
 const runConfigurator = require('./configurator');
 
 if (!fs.existsSync('config.json')) {
