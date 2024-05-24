@@ -1,0 +1,226 @@
+body {
+    background: #1a1a1a;
+    color: white;
+    height: 100vh;
+    margin: 0;
+    display:flex;
+    font-family: Arial, sans-serif;
+    height:100dvh;
+    width:100dvw;
+    overflow:hidden;
+}
+#sidebar {
+    background: #2c2f3d;
+    width: 280px;
+    min-width:280px;
+    padding: 10px;
+    overflow: hidden;
+    transition-duration: 200ms;
+    padding-right: 0;
+}
+main{
+    height:100dvh;
+    overflow:hidden;
+    width:100%;
+    background: #303146;
+}
+#chat-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    position: relative;
+    height: calc(100dvh - 120px);
+    padding: 5px;
+}
+#model-selection {
+    position: absolute;
+    top: 18px;
+    right: 8px;
+}
+#model-selection label {
+    margin-right: 10px;
+}
+#chat {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 20px;
+}
+.conversation-item {
+    background: #3a3f51;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.conversation-item:hover {
+    background: #4a4f61;
+}
+#chat-form {
+    height:60px;
+    position: absolute;
+    bottom:0;
+    width:100%;
+}
+#userMessage {
+    height: auto;
+    width: calc(100% - 10px);
+    border: none;
+    border-bottom: groove;
+    font-size: 16px;
+    border-width: 0 0 1px 0;
+    outline: 0;
+    border-radius: 0;
+}
+#answerContainer {
+    margin-top: 10px;
+}
+.message {
+    background: #101010;
+    color: white;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    width: fit-content;
+}
+nav{
+    background:#1a1a1a;
+    height:60px;
+    width:100%;
+    display:flex;
+}
+.icon{
+    filter:invert(1);
+    width:35px;
+}
+#textInputDiv{
+    background: white;
+    padding: 0;
+    width: calc(100% - 402px);
+    height: 45px;
+    border-radius: 10px;
+    float: left;
+    overflow: hidden;
+    transition-duration: 200ms;
+}
+#inputs {
+    height: 60px;
+    display: block;
+    width: auto;
+    padding: 7px 4px 0 4px;
+    border-top: 1px solid #2c2f3d;
+    background-color: #303146;
+}
+#attachment {
+    float: left;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    background: #b5358e;
+    height: 45px;
+    margin-left: 5px;
+    border-radius: 10px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    display: flex;
+    justify-content: center;
+}
+#send{
+    width: 45px;
+    min-width: 45px;
+    max-width: 45px;
+    margin-left: 5px;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    width: 85px;
+    height: 35px;
+    border-radius: 40px;
+    background: #b5358e;
+    float: left;
+    padding: 5px;
+    text-align: center;
+    cursor: pointer;
+}
+#userMessage::first-line {
+    line-height: 40px;
+}
+.longerInput{
+    width: calc(100% - 112px) !important;
+}
+@media only screen and (max-width: 600px) {
+    nav{
+        height:60px;
+    }
+    #sidebar{
+        position: fixed;
+height: 100dvh;
+z-index: 10;
+    }
+}
+.sideBarHidden{
+    width: 0px !important;
+    max-width: 0px !important;
+    min-width: 0px !important;
+    padding: 0 !important;
+}
+#conversations{
+    overflow-y:auto;
+    height:calc(100dvh - 125px)
+}
+#account{
+    height:60px;
+    display:flex;
+    font-weight: bold;
+    align-items: center;
+    justify-content: space-between;
+    border-top:1px solid #1a1a1a;
+}
+#logout:hover{
+    opacity:0.5;
+}
+.new_thing_button{
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 1.1em;
+    cursor: pointer;
+    padding: 5px 10px;
+    width: 30px;
+    border-radius: 5px;
+    background-color: #1a1a1a;
+    margin-right: 10px;
+}
+#sidebar h2{
+    margin-top: 10px;
+    margin-bottom: 10px;
+    font-size: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.conversation-tile{
+    width: calc(100% - 5px);
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    height: 40px;
+    background-color: #1a1a1a54;
+    border-radius: 10px;
+    margin-bottom:5px;
+    position:relative;
+}
+.conversation-tile label{
+    padding:5px;
+    width:calc(100% - 35px);
+}
+.deleteConv{
+    width: 20px;
+    position: absolute;
+    right: 6px;
+    cursor:pointer;
+    z-index: 10;
+}
+.deleteConv:hover{
+    opacity:0.5;
+}

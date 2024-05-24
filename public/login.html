@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login and Register</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        if(localStorage.accessToken != null){
+            $.ajax({
+                    url: '/api/check-token',
+                    type: 'GET',
+                    headers: {
+                        'Authorization': localStorage.accessToken
+                    },
+                    success: function(response) {
+                        window.location="/app"
+                    },
+                    error: function(xhr, status, error) {
+                        //window.location="login.html"
+                    }
+                });
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        .container {
+            width: 300px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .form-group button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .form-group button:hover {
+            background-color: #0056b3;
+        }
+        .message {
+            margin-top: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Register</h2>
+        <div class="form-group">
+            <label for="register-username">Username</label>
+            <input type="text" id="register-username">
+        </div>
+        <div class="form-group">
+            <label for="register-password">Password</label>
+            <input type="password" id="register-password">
+        </div>
+        <div class="form-group">
+            <label for="register-password2">Repeat password</label>
+            <input type="password" id="register-password2">
+        </div>
+        <div class="form-group">
+            <label for="register-invitecode">Invite code</label>
+            <input type="text" id="register-invitecode">
+        </div>
+        <div class="form-group">
+            <button id="register-button">Register</button>
+        </div>
+        <h2>Login</h2>
+        <div class="form-group">
+            <label for="login-username">Username</label>
+            <input type="text" id="login-username">
+        </div>
+        <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password">
+        </div>
+        <div class="form-group">
+            <button id="login-button">Login</button>
+        </div>
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Register handler
+            $('#register-button').click(function() {
+                const username = $('#register-username').val();
+                const password = $('#register-password').val();
+                const password2 = $('#register-password2').val();
+                const invitecode = $('#register-invitecode').val();
+
+                if(password!=password2){
+                    $('#message').text(`Passwords has to be identical!`)
+                    return
+                }
+                if(invitecode==""){
+                    $('#message').text(`To create an account invite code is required`)
+                    return
+                }
+
+                $.ajax({
+                    url: '/api/register',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ username, password, invitecode }),
+                    success: function(response) {
+                        $('#message').text(response.message);
+                    },
+                    error: function(xhr) {
+                        $('#message').text(xhr.responseJSON.error);
+                    }
+                });
+            });
+
+            // Login handler
+            $('#login-button').click(function() {
+                const username = $('#login-username').val();
+                const password = $('#login-password').val();
+
+                $.ajax({
+                    url: '/api/login',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ username, password }),
+                    success: function(response) {
+                        $('#message').text('Login successful!');
+                        localStorage.setItem('accessToken', "Bearer "+response.token); // Store token
+                        window.location="/app"
+                    },
+                    error: function(xhr) {
+                        $('#message').text(xhr.responseJSON.error);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

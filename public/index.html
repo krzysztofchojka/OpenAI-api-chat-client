@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GPT Chat</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/app/assets/css/style.css"/>
+    <link rel="icon" href="/app/assets/favicons/apple-touch-icon.png">
+    <script>
+        if(localStorage.accessToken == null){
+            window.location="/app/login.html"
+        }else{
+            $.ajax({
+                    url: '/api/check-token',
+                    type: 'GET',
+                    headers: {
+                        'Authorization': localStorage.accessToken
+                    },
+                    success: function(response) {
+                        //$('#response-message').text('Token is valid: ' + response.message);
+                    },
+                    error: function(xhr, status, error) {
+                        window.location="/app/login.html"
+                    }
+                });
+        }
+    </script>
+    <style>
+        .embed-img{
+            width:100%;
+            max-width:400px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="sidebar">
+    <h2>Conversations <div class="new_thing_button" onClick="newConversation()">+</div></h2>
+    <div id="conversations">
+    </div>
+    <div id="account">
+        <label id="username"></label>
+        <img src="/app/assets/icons/logout.svg" alt="Logout" class="icon" onClick="logout()" id="logout" style="margin-right:5px;">
+    </div>
+</div>
+<main>
+    <nav>
+        <img src="/app/assets/icons/burger-list-menu-navigation-svgrepo-com.svg" alt="Menu" class="icon" style="margin-left:10px;cursor:pointer;" onClick="hideShowSideBar(event)">
+        <div id="model-selection">
+            <label>
+                <input type="radio" name="model" value="gpt-3.5-turbo" checked> GPT-3.5
+            </label>
+            <label>
+                <input type="radio" name="model" value="gpt-4o"> GPT-4o
+            </label>
+        </div>
+    </nav>
+    <div id="chat-container">
+        <div id="chat"></div>
+    </div>
+    <form id="chat-form" enctype="multipart/form-data" onsubmit="sendRequest(event)">
+        <div id="inputs">
+            <input type="file" id="attachment" name="attachment[]" style="display:none;">
+            <div id="attachmentsDiv" style="width:100%;height:fit-content;max-height:50px;display:flex;flex-wrap:nowrap;justify-content:left;overflow-x:auto;position:relative;bottom:5px;">
+            </div>
+            <div id="textInputDiv">
+                <center>
+                    <textarea type="text" id="userMessage" name="userMessage" placeholder="Type your message" required></textarea>
+                </center>
+            </div>
+            <div onclick='$("#attachment").click()' id="attachment">
+                <img src="/app/assets/icons/attachment-1575-svgrepo-com.svg" style="width:25px" class="icon">
+            </div>
+            <div id="send" onclick='$("#chat-form").submit()'>
+                <img src="/app/assets/icons/send-2-svgrepo-com.svg" alt="send" class="icon">
+            </div>
+        </div>
+    </form>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/12.0.6/markdown-it.min.js"></script>
+<script>
+    var md = window.markdownit();
+    var conversations = JSON.parse(localStorage.getItem('conversations')) || [];
+    var base64Image = '';
+
+    function convertImageToBase64() {
+    var file = document.getElementById('attachment').files[0];
+    var reader = new FileReader();
+
+    reader.onloadend = function () {
+        var base64Image = reader.result.split(',')[1]; // Remove the Base64 prefix
+        // Upload base64Image to an image hosting service and get the URL
+        uploadImage(base64Image).then(imageUrl => {
+            // Set the image URL for the request
+            base64Image = imageUrl;
+        });
+    }
+
+    if (file) {
+        reader.readAsDataURL(file);
+    } else {
+        base64Image = '';
+    }
+    }
+
+    function newConversation(){
+        $.ajax({
+            type: "POST",
+            url: "/api/conv/create",
+            contentType: "application/json",
+            data: JSON.stringify({
+                title:"New conversation",
+                memory:true
+            }),
+            headers: {
+                'Authorization': localStorage.getItem("accessToken")
+            },
+            success: function(response) {
+                const newPath = `/app/conv/${response.convId}`;
+                modifyPath(newPath);
+            },
+            error: function(error) {
+                console.error("Error:", error);
+                //displayAnswer("", "Error processing request");
+            }
+        });
+    }
+
+    function deleteConversation(event, convid){
+        //alert("New conv:\n1.request new conv via api\n2.get conv id from response\n3.redirect to /app/conv/:convid");
+        //event.preventDefault();
+        //event.stopPropagation();
+        $.ajax({
+            type: "DELETE",
+            url: "/api/conv/delete/"+convid,
+            contentType: "application/json",
+            data: JSON.stringify({}),
+            headers: {
+                'Authorization': localStorage.getItem("accessToken")
+            },
+            success: function(response) {
+                let s = window.location.pathname.split("/");
+                if(s[s.length-1]==convid){
+                    const newPath = `/app`;
+                    modifyPath(newPath);
+                }
+            },
+            error: function(error) {
+            }
+        });
+    }
+
+    function uploadImage(file) {
+        return new Promise((resolve, reject) => {
+            var formData = new FormData();
+            formData.append('file', file);
+
+            $.ajax({
+                url: '/api/upload',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    resolve(response.fileUrl);
+                },
+                error: function(error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    function addConv(title, convId, memory){
+        $("#conversations").prepend(`
+            <div class="conversation-tile" data-memory="${memory}" data-convid="${convId}">
+                <label onClick="loadConv('${convId}')">${title}</label>
+                <img src="/app/assets/icons/delete-2.svg" onClick='deleteConversation(event, "${convId}")' class="icon deleteConv"/>
+            </div>
+        `);
+    }
+
+    function loadConv(convId){
+        const newPath = `/app/conv/${convId}`;
+        modifyPath(newPath);
+    }
+
+    function loadConversationsList() {
+        $.ajax({
+            type: "POST",
+            url: "/api/conv/list",
+            contentType: "application/json",
+            data: JSON.stringify({}),
+            headers: {
+                'Authorization': localStorage.getItem("accessToken")
+            },
+            success: function(response) {
+                response.convList.forEach(conv => {
+                    addConv(conv.title, conv.id, conv.memory)
+                })
+            },
+            error: function(error) {
+                console.error("Error:", error);
+            }
+        });
+        $("#conversations").html("");
+        conversations.forEach((conv, index) => {
+            $("#conversations").append(`<div class="conversation-item" onclick="loadConversation(${index})">${conv.title}</div>`);
+        });
+    }
+
+    function sendRequest(event) {
+        event.preventDefault();
+        var userMessage = $("#userMessage").val();
+        //displayAnswer("You", userMessage)
+        $("#userMessage").val('');
+        var fileInput = document.getElementById('attachment');
+        var file = fileInput.files[0];
+        if (file) {
+            uploadImage(file).then(imageUrl => {
+                //displayAnswer("You", `![image](${imageUrl})`);
+                $("#attachment").val('');
+                makeRequest(userMessage, imageUrl);
+            }).catch(error => {
+                console.error("Error uploading image:", error);
+                $("#attachment").val('');
+                makeRequest(userMessage, '');
+            });
+        } else {
+            //displayAnswer(userMessage)
+            $("#attachment").val('');
+            makeRequest(userMessage, '');
+        }
+    }
+
+    function makeRequest(userMessage, imageUrl) {
+        var selectedModel = $("input[name='model']:checked").val();
+        const s = window.location.pathname.split("/");
+        if(s.length>=3 && s[s.length-2]=="conv"){
+            const convId = s[s.length-1]
+            //send a message to a conversation
+            //alert(convId)
+            $.ajax({
+                type: "POST",
+                url: "/api/message/send", // Replace with your server URL
+                contentType: "application/json",
+                data: JSON.stringify({ convId:convId, userMessage: userMessage, model: selectedModel, image: imageUrl }),
+                headers: {
+                    'Authorization': localStorage.getItem("accessToken")
+                },
+                success: function(response) {
+                    //displayAnswer("GPT", response.answer);
+                },
+                error: function(error) {
+                    console.error("Error:", error);
+                    displayAnswer("", "Error processing request: "+error.error);
+                }
+            });
+        }else{
+            //just ask a single question outside the conversation
+            $.ajax({
+                type: "POST",
+                url: "/api/ask", // Replace with your server URL
+                contentType: "application/json",
+                data: JSON.stringify({ userMessage: userMessage, model: selectedModel, image: imageUrl }),
+                headers: {
+                    'Authorization': localStorage.getItem("accessToken")
+                },
+                success: function(response) {
+                    displayAnswer("GPT", response.answer);
+                },
+                error: function(error) {
+                    console.error("Error:", error);
+                    displayAnswer("", "Error processing request");
+                }
+            });
+        }
+    }
+
+    function displayAnswer(author, message) {
+        if(message)
+        {if(!message.startsWith("![generate_image]")){
+            $("#chat").append(`<div class="message"><strong>${author}</strong> ${md.render(message)}</div>`);
+        }else{
+            imgPrompt = message.replace("![generate_image]", "")
+            requestImgGen(imgPrompt)
+        }}
+    }
+    function displayImgAnswer(author, url) {
+        if(url && author){
+            $("#chat").append(`<div class="message"><strong>${author}</strong><br/><img class="embed-img" src="${url}"/></div>`);
+        }
+    }
+
+    async function requestImgGen(p){
+        $.ajax({
+                    url: '/api/generate-image',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ prompt: p }),
+                    headers: {
+                        'Authorization': localStorage.getItem("accessToken")
+                    },
+                    success: function(response) {
+                        console.log(response.imageUrl);
+                        displayAnswer("GPT", `![image](${response.imageUrl})`);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error generating image:', error);
+                        displayAnswer("", `Error generating image`);
+                    }
+                });
+    }
+
+    function hideShowSideBar(event){
+        event.stopPropagation();
+        if($("#sidebar").css("width")!="0px"){
+            $("#sidebar").addClass("sideBarHidden");
+            $("#textInputDiv").addClass("longerInput");
+        }else{
+            $("#sidebar").removeClass("sideBarHidden");
+            if(window.innerWidth>600){
+                $("#textInputDiv").removeClass("longerInput");
+            }
+            
+        }
+    }
+    function logout(){
+            $.ajax({
+                    url: '/api/logout',
+                    type: 'POST',
+                    headers: {
+                        'Authorization': localStorage.accessToken
+                    },
+                    success: function(response) {
+                        localStorage.removeItem("accessToken")
+                        window.location="/app/login.html"
+                    },
+                    error: function(xhr, status, error) {
+                        localStorage.removeItem("accessToken")
+                        window.location="/app/login.html"
+                    }
+                });
+        }
+    $(window).on("resize load", ()=>{
+        if(window.innerWidth<=600){
+            $("#sidebar").addClass("sideBarHidden");
+            $("#textInputDiv").addClass("longerInput");
+        }
+    })
+    $("body").on("click", ()=>{
+        if(window.innerWidth<=600){
+            $("#sidebar").addClass("sideBarHidden");
+        }else{
+            $("#textInputDiv").removeClass("longerInput");
+        }
+    })
+    window.account = {id:""}
+    $(document).ready(()=>{
+        $.ajax({
+                    url: '/api/me',
+                    type: 'GET',
+                    headers: {
+                        'Authorization': localStorage.accessToken
+                    },
+                    success: function(response) {
+                        $("#username").html(response.username)
+                        window.account.id=response.userid
+                        const s = window.location.pathname.split("/");
+                        if(s.length>=3 && s[s.length-2]=="conv"){
+                            const convId = s[s.length-1]
+                            loadConv(convId)
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        
+                    }
+                });
+                loadConversationsList();
+    })
+
+    //WebSockets
+    $(document).ready(function() {
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+        console.error('No access token found in localStorage.');
+        return;
+    }
+
+    let socket = null;
+const socketUrl = `wss://${window.location.host}/ws`;
+
+function connectWebSocket() {
+    socket = new WebSocket(socketUrl);
+
+    // Connection opened
+    socket.addEventListener('open', function (event) {
+        socket.send(JSON.stringify({ action: 'auth', token: accessToken }));
+        //console.log('Connected to WS Server');
+    });
+
+    // Listen for messages
+    socket.addEventListener('message', function (event) {
+        const json = JSON.parse(event.data)
+        if(json.action=="new_conversation"){
+            addConv("New conversation", json.convId, true)
+        }else
+        if(json.action=="delete_conversation"){
+            $(`.conversation-tile[data-convid=${json.convId}]`).remove()
+            let s = window.location.pathname.split("/");
+            if(s[s.length-1]==json.convId){
+                const newPath = `/app`;
+                modifyPath(newPath);
+            }
+        }else
+        if(json.action=="new_message"){
+            const s = window.location.pathname.split("/");
+            if(s.length>=2 && s[s.length-2]=="conv" && s[s.length-1]==json.convId){
+                let author = "GPT"
+                if(json.author == window.account.id){
+                    author = "You"
+                }
+                displayAnswer(author, json.content)
+            }
+        }else
+        if(json.action=="new_message_img"){
+            const s = window.location.pathname.split("/");
+            if(s.length>=2 && s[s.length-2]=="conv" && s[s.length-1]==json.convId){
+                let author = "GPT"
+                if(json.author == window.account.id){
+                    author = "You"
+                }
+                console.log(json)
+                displayImgAnswer(author, json.content.replace("{CONFIG.SERVER_HOSTNAME}", window.location.protocol+"//"+window.location.hostname))
+            }
+        }
+        console.log(json)
+    });
+
+    // Handle WebSocket closure
+    socket.addEventListener('close', function (event) {
+        console.log('WebSocket connection closed. Reconnecting...');
+        setTimeout(connectWebSocket, 5000); // Adjust reconnection delay as needed
+    });
+
+    // Handle WebSocket errors
+    socket.addEventListener('error', function (event) {
+        console.error('WebSocket Error:', event);
+    });
+}
+
+connectWebSocket(); // Start the initial connection
+});
+$("#sidebar").on("click", (event)=>{
+    event.stopPropagation();
+})
+
+function modifyPath(newPath){
+    console.log("PATH HAS CHANGED!")
+    window.history.pushState({ path: newPath }, '', newPath);
+    const s = window.location.pathname.split("/");
+    if(s.length>=2 && s[s.length-2]=="conv"){
+        $.ajax({
+            url: '/api/conv/load/'+s[s.length-1],
+            type: 'GET',
+            headers: {
+                'Authorization': localStorage.accessToken
+            },
+            success: function(response) {
+                $("#chat").html("");
+                const arr = response.messagesList;
+                for(let msg of arr){
+                    let author = "GPT"
+                    if(msg.userId === window.account.id){
+                        author = "You"
+                    }
+                    msg.json=JSON.parse(msg.json)
+                    if(msg.type=="text"){
+                        displayAnswer(author, msg.json.content)
+                    }else
+                    if(msg.type=="image_url"){
+                        displayImgAnswer(author, msg.json.content[0].image_url.url.replace("{CONFIG.SERVER_HOSTNAME}", window.location.protocol+"//"+window.location.hostname))
+                    }                    
+                }
+                $("#chat").scrollTop(document.querySelector("#chat").scrollHeight)
+            },
+            error: function(xhr, status, error) {
+                $("#chat").html(error);
+            }
+        });
+    }else
+    if(s.length==1 && s[0]=="app"){
+        $("#chat").html();
+    }
+}
+
+</script>
+</body>
+</html>
