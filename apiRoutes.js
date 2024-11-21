@@ -102,7 +102,16 @@ router.delete('/conv/delete/:id', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden: You do not own this conversation' });
     }
 
-    await Conversations.destroy({ where: { id: conversationId } });
+// Start a transaction to ensure both deletions succeed or fail together
+await sequelize.transaction(async (t) => {
+  // Delete associated messages
+  await Messages.destroy({ where: { convId: conversationId }, transaction: t });
+  
+  // Delete the conversation
+  await Conversations.destroy({ where: { id: conversationId }, transaction: t });
+  });
+
+    //await Conversations.destroy({ where: { id: conversationId } });
 
     let ws_clients = wsClientManager.getClients();
     ws_clients.forEach(client => {

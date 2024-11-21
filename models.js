@@ -65,6 +65,7 @@ const User = sequelize.define('User', {
     }
   });
   
+  
   const Messages = sequelize.define('Messages', {
     id: {
       type: DataTypes.UUID,
@@ -100,6 +101,18 @@ const User = sequelize.define('User', {
       allowNull: false,
       defaultValue: DataTypes.NOW // This will set the default value to the current date and time
     }
+  });
+
+  // Define the association
+  Conversations.hasMany(Messages, {
+    foreignKey: 'convId',
+    onDelete: 'CASCADE',
+    hooks: true // Ensures that hooks are called for cascade operations
+    });
+
+  // Define the inverse association (optional but recommended)
+Messages.belongsTo(Conversations, {
+  foreignKey: 'convId'
   });
 
   const db = {
