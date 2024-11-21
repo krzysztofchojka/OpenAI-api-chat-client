@@ -214,6 +214,7 @@ router.post('/message/send', async (req, res) => {
       }else
       if (model == "o1-mini") {
         GPTModel = "o1-mini";
+        messages.shift();
       }
       const response = await axios.post('https://api.openai.com/v1/chat/completions',
         {

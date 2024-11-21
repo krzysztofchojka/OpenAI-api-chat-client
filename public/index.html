@@ -65,9 +65,9 @@
             <label>
                 <input type="radio" name="model" value="gpt-4o"> GPT-4o
             </label>
-            <!--label>
+            <label>
                 <input type="radio" name="model" value="o1-mini"> o1-mini
-            </label-->
+            </label>
         </div>
     </nav>
     <div id="chat-container">
@@ -337,7 +337,7 @@
                 },
                 error: function(error) {
                     console.error("Error:", error);
-                    displayAnswer("", "Error processing request: "+error.error);
+                    //displayAnswer("", "Error processing request: "+error.error);
                 }
             });
         }else{
