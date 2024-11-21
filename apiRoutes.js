@@ -163,7 +163,7 @@ router.post('/message/send', async (req, res) => {
     const userId = tokenRecord.userId;
     const { convId, userMessage, model, image } = req.body;
     let json;
-
+//If user wants a math equasion use LaTex and start with backslash bracket.
     let messages = [{ role: 'system', content: 'You are a helpful assistant. If user asks you to draw something start your reply EXACTLY like this: ![generate_image]and here write the image prompt for DALLE' }];
     if (image) {
       json = [
@@ -196,7 +196,12 @@ router.post('/message/send', async (req, res) => {
     ws_clients.forEach(client => {
         if (client.readyState == WebSocket.OPEN && client.userId == userId) {
             for(let m of json){
-              client.send(`{"action":"new_message", "convId":"${convId}", "author":"${userId}", "content":"${m.content}"}`)
+              client.send(JSON.stringify({
+                action:"new_message",
+                convId:convId,
+                author:userId,
+                content:m.content
+              }))
             }
         }
     });
@@ -206,6 +211,9 @@ router.post('/message/send', async (req, res) => {
       let GPTModel = "gpt-3.5-turbo";
       if (model == "gpt-4o") {
         GPTModel = "gpt-4o";
+      }else
+      if (model == "o1-mini") {
+        GPTModel = "o1-mini";
       }
       const response = await axios.post('https://api.openai.com/v1/chat/completions',
         {
@@ -232,7 +240,13 @@ router.post('/message/send', async (req, res) => {
           });
           ws_clients.forEach(client => {
             if (client.readyState == WebSocket.OPEN && client.userId == userId) {
-                  client.send(`{"action":"new_message", "convId":"${convId}", "author":"GPT", "content":"${answer.content}"}`)
+              client.send(JSON.stringify({
+                action:"new_message",
+                convId:convId,
+                author:"GPT",
+                content:answer.content
+              }))
+                  //client.send(`{"action":"new_message", "convId":"${convId}", "author":"GPT", "content":"${answer.content}"}`)
             }
         });
       }else{

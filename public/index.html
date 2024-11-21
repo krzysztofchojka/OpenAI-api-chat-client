@@ -31,6 +31,16 @@
             width:100%;
             max-width:400px;
         }
+        div.message{
+            margin-top:10px;
+            margin-left:5px;
+            max-width: calc(100% - 40px);
+        }
+        div.message.you{
+            background-color: #42b3ae;
+    margin-left: auto;
+    margin-right: 10px;
+        }
     </style>
 </head>
 
@@ -55,6 +65,9 @@
             <label>
                 <input type="radio" name="model" value="gpt-4o"> GPT-4o
             </label>
+            <!--label>
+                <input type="radio" name="model" value="o1-mini"> o1-mini
+            </label-->
         </div>
     </nav>
     <div id="chat-container">
@@ -80,9 +93,28 @@
     </form>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/12.0.6/markdown-it.min.js"></script>
+<!--script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/12.0.6/markdown-it.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<script src="/app/assets/js/markdown-it-mathjax.js"></script-->
+
+    
+
+<!-- Marked.js: For Markdown to HTML conversion -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- Prism.js: For syntax highlighting -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.min.css">
+<script src="https://cdn.jsdelivr.net/npm/prismjs/prism.min.js"></script>
+
+<!-- Optional: Additional Prism.js languages (if needed) -->
+<script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-python.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs"></script>
+
+<!-- MathJax: For rendering LaTeX-style mathematical formulas -->
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <script>
-    var md = window.markdownit();
+    //var md = window.markdownit().use(window.markdownitMathjax()); // Disable escaping for LaTeX;
     var conversations = JSON.parse(localStorage.getItem('conversations')) || [];
     var base64Image = '';
 
@@ -212,6 +244,55 @@
         });
     }
 
+    async function formatNodeWithRichText(node, content) {
+    // Ensure the node exists
+    if (!node) throw new Error("Node is required");
+
+     // Escape LaTeX backslashes to avoid issues with Markdown parsing
+     content = content.replace(/\\/g, '\\\\');
+
+    // Import required libraries dynamically
+    if (!window.marked) {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
+        script.onload = () => console.log("Markdown library loaded.");
+        document.head.appendChild(script);
+        await new Promise(resolve => script.onload = resolve);
+    }
+
+    if (!window.Prism) {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/prismjs/prism.min.js";
+        document.head.appendChild(script);
+        const css = document.createElement('link');
+        css.rel = "stylesheet";
+        css.href = "https://cdn.jsdelivr.net/npm/prismjs/themes/prism.min.css";
+        document.head.appendChild(css);
+        await new Promise(resolve => script.onload = resolve);
+    }
+
+    if (!window.MathJax) {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
+        document.head.appendChild(script);
+        await new Promise(resolve => script.onload = resolve);
+    }
+
+    // Process content using Markdown
+    const htmlContent = marked.parse(content);
+
+    // Set the HTML content of the node
+    node.innerHTML = htmlContent;
+
+    // Highlight code blocks using Prism
+    Prism.highlightAllUnder(node);
+
+    // Render math formulas using MathJax
+    if (window.MathJax) {
+        window.MathJax.typesetPromise([node]).catch(err => console.error(err));
+    }
+}
+
     function sendRequest(event) {
         event.preventDefault();
         var userMessage = $("#userMessage").val();
@@ -283,7 +364,25 @@
     function displayAnswer(author, message) {
         if(message)
         {if(!message.startsWith("![generate_image]")){
-            $("#chat").append(`<div class="message"><strong>${author}</strong> ${md.render(message)}</div>`);
+            let new_message = document.createElement("div");
+            new_message.classList.add("message");
+            if(author=="You"){
+                new_message.classList.add("you");
+            }
+            let nm_title=document.createElement("strong");
+            nm_title.innerText=author;
+            let nm_content = document.createElement("div");
+            nm_content.innerText=message;
+            new_message.appendChild(nm_title);
+            new_message.appendChild(nm_content);
+            $("#chat").append(new_message);
+            formatNodeWithRichText(nm_content, nm_content.innerText);
+            /*MathJax.typesetPromise()
+                .then(() => {
+                    nm_content.innerHTML=nm_content.innerText;
+                })
+                .catch((err) => console.error('Math rendering error:', err));*/
+            //$("#chat").append(`<div class="message"><strong>${author}</strong> ${md.render(message)}</div>`);
         }else{
             imgPrompt = message.replace("![generate_image]", "")
             requestImgGen(imgPrompt)
@@ -291,7 +390,21 @@
     }
     function displayImgAnswer(author, url) {
         if(url && author){
-            $("#chat").append(`<div class="message"><strong>${author}</strong><br/><img class="embed-img" src="${url}"/></div>`);
+            //$("#chat").append(`<div class="message"><strong>${author}</strong><br/><img class="embed-img" src="${url}"/></div>`);
+            let new_message = document.createElement("div");
+            new_message.classList.add("message");
+            if(author=="You"){
+                new_message.classList.add("you");
+            }
+            let nm_title=document.createElement("strong");
+            nm_title.innerText=author;
+            let nm_content = document.createElement("img");
+            nm_content.classList.add("embed-img");
+            nm_content.src=url;
+            new_message.appendChild(nm_title);
+            new_message.appendChild(document.createElement("br"));
+            new_message.appendChild(nm_content);
+            $("#chat").append(new_message);
         }
     }
 
@@ -393,6 +506,8 @@
     let socket = null;
 const socketUrl = `wss://${window.location.host}/ws`;
 
+
+
 function connectWebSocket() {
     socket = new WebSocket(socketUrl);
 
@@ -404,40 +519,43 @@ function connectWebSocket() {
 
     // Listen for messages
     socket.addEventListener('message', function (event) {
-        const json = JSON.parse(event.data)
-        if(json.action=="new_conversation"){
-            addConv("New conversation", json.convId, true)
-        }else
-        if(json.action=="delete_conversation"){
-            $(`.conversation-tile[data-convid=${json.convId}]`).remove()
-            let s = window.location.pathname.split("/");
-            if(s[s.length-1]==json.convId){
-                const newPath = `/app`;
-                modifyPath(newPath);
-            }
-        }else
-        if(json.action=="new_message"){
-            const s = window.location.pathname.split("/");
-            if(s.length>=2 && s[s.length-2]=="conv" && s[s.length-1]==json.convId){
-                let author = "GPT"
-                if(json.author == window.account.id){
-                    author = "You"
+        let data = event.data;
+
+        try {
+            //parsing always files when there is some special character, bqackslashes, etc...
+            const json = JSON.parse(data);  // jQuery's version of JSON parsing
+
+            if(json.action == "new_conversation") {
+                addConv("New conversation", json.convId, true);
+            } else if(json.action == "delete_conversation") {
+                $(`.conversation-tile[data-convid=${json.convId}]`).remove();
+                let s = window.location.pathname.split("/");
+                if(s[s.length-1] == json.convId) {
+                    const newPath = `/app`;
+                    modifyPath(newPath);
                 }
-                displayAnswer(author, json.content)
-            }
-        }else
-        if(json.action=="new_message_img"){
-            const s = window.location.pathname.split("/");
-            if(s.length>=2 && s[s.length-2]=="conv" && s[s.length-1]==json.convId){
-                let author = "GPT"
-                if(json.author == window.account.id){
-                    author = "You"
+            } else if(json.action == "new_message") {
+                const s = window.location.pathname.split("/");
+                if(s.length >= 2 && s[s.length-2] == "conv" && s[s.length-1] == json.convId) {
+                    let author = json.author == window.account.id ? "You" : "GPT";
+                    displayAnswer(author, json.content);
                 }
-                console.log(json)
-                displayImgAnswer(author, json.content.replace("{CONFIG.SERVER_HOSTNAME}", window.location.protocol+"//"+window.location.hostname))
+            } else if(json.action == "new_message_img") {
+                const s = window.location.pathname.split("/");
+                if(s.length >= 2 && s[s.length-2] == "conv" && s[s.length-1] == json.convId) {
+                    let author = json.author == window.account.id ? "You" : "GPT";
+                    console.log(json);
+                    displayImgAnswer(author, json.content.replace("{CONFIG.SERVER_HOSTNAME}", window.location.protocol + "//" + window.location.hostname));
+                }
             }
+
+            console.log(json);
+
+        } catch (e) {
+            console.error("Error parsing JSON:", e);
+            // Optionally, log the raw data to diagnose further issues
+            console.log("Received raw data:", data);
         }
-        console.log(json)
     });
 
     // Handle WebSocket closure
@@ -451,6 +569,7 @@ function connectWebSocket() {
         console.error('WebSocket Error:', event);
     });
 }
+
 
 connectWebSocket(); // Start the initial connection
 });
@@ -478,12 +597,19 @@ function modifyPath(newPath){
                         author = "You"
                     }
                     msg.json=JSON.parse(msg.json)
-                    if(msg.type=="text"){
-                        displayAnswer(author, msg.json.content)
-                    }else
-                    if(msg.type=="image_url"){
-                        displayImgAnswer(author, msg.json.content[0].image_url.url.replace("{CONFIG.SERVER_HOSTNAME}", window.location.protocol+"//"+window.location.hostname))
-                    }                    
+                    
+                    let tmparr=[];
+                    if(!Array.isArray(msg.json.content)){
+                        msg.json.content=[msg.json.content];
+                    }
+                    for(let con of msg.json.content){
+                        if(msg.type=="text" && con.type==undefined){
+                            displayAnswer(author, con)    
+                        }else
+                        if(con.type=="image_url"){
+                            displayImgAnswer(author, con.image_url.url.replace("{CONFIG.SERVER_HOSTNAME}", window.location.protocol+"//"+window.location.hostname))
+                        }  
+                    }             
                 }
                 $("#chat").scrollTop(document.querySelector("#chat").scrollHeight)
             },
