@@ -59,11 +59,14 @@
     <nav>
         <img src="/app/assets/icons/burger-list-menu-navigation-svgrepo-com.svg" alt="Menu" class="icon" style="margin-left:10px;cursor:pointer;" onClick="hideShowSideBar(event)">
         <div id="model-selection">
+            <!--label>
+                <input type="radio" name="model" value="gpt-3.5-turbo"> GPT-3.5
+            </label-->
             <label>
-                <input type="radio" name="model" value="gpt-3.5-turbo" checked> GPT-3.5
+                <input type="radio" name="model" value="gpt-4o-mini" checked> 4o-mini
             </label>
             <label>
-                <input type="radio" name="model" value="gpt-4o"> GPT-4o
+                <input type="radio" name="model" value="gpt-4o" > GPT-4o
             </label>
             <label>
                 <input type="radio" name="model" value="o1-mini"> o1-mini
@@ -73,7 +76,7 @@
     <div id="chat-container">
         <div id="chat"></div>
     </div>
-    <form id="chat-form" enctype="multipart/form-data" onsubmit="sendRequest(event)">
+    <!--form id="chat-form" enctype="multipart/form-data" onsubmit="sendRequest(event)">
         <div id="inputs">
             <input type="file" id="attachment" name="attachment[]" style="display:none;">
             <div id="attachmentsDiv" style="width:100%;height:fit-content;max-height:50px;display:flex;flex-wrap:nowrap;justify-content:left;overflow-x:auto;position:relative;bottom:5px;">
@@ -90,14 +93,138 @@
                 <img src="/app/assets/icons/send-2-svgrepo-com.svg" alt="send" class="icon">
             </div>
         </div>
-    </form>
+    </form-->
+    <form id="chat-form" enctype="multipart/form-data" onsubmit="sendRequest(event)">
+        <div id="inputs" style="position: relative;">
+        <!-- Hidden File Input -->
+        <input type="file" id="file-input" name="attachment[]" style="display:none;" accept="image/*" multiple>
+        
+        <!-- Attachments Display Area -->
+        <div id="attachmentsDiv" style="width:100%; height: fit-content; max-height: 50px; display: flex; flex-wrap: nowrap; justify-content: left; overflow-x: auto; position: relative; bottom: 5px;">
+        <!-- Thumbnails of attached images will appear here -->
+        </div>
+        
+        <!-- Text Input Area -->
+        <div id="textInputDiv">
+        <center>
+        <textarea
+        type="text"
+        id="userMessage"
+        name="userMessage"
+        placeholder="Type your message"
+        required
+        style="width: 80%; height: 100px; resize: none;"
+        ></textarea>
+        </center>
+        </div>
+        
+        <!-- Attachment Icon -->
+        <div onclick='document.getElementById("file-input").click();' style="cursor: pointer;">
+        <img src="/app/assets/icons/attachment-1575-svgrepo-com.svg" style="width:25px" class="icon" alt="Attach">
+        </div>
+        
+        <!-- Send Icon -->
+        <div onclick='$("#chat-form").submit()' style="cursor: pointer;">
+        <img src="/app/assets/icons/send-2-svgrepo-com.svg" alt="send" class="icon" style="width:25px;">
+        </div>
+        </div>
+        </form>
 </main>
 
-<!--script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/12.0.6/markdown-it.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
-<script src="/app/assets/js/markdown-it-mathjax.js"></script-->
-
+<script>
+    // Array to hold the attached files
+    let attachedFiles = [];
     
+    // Reference to HTML elements
+    const fileInput = document.getElementById('file-input');
+    const attachmentsDiv = document.getElementById('attachmentsDiv');
+    const userMessage = document.getElementById('userMessage');
+    const chatForm = document.getElementById('chat-form');
+    
+    // Handle file selection via file input
+    fileInput.addEventListener('change', (event) => {
+    const files = event.target.files;
+    handleFiles(files);
+    // Reset the file input so the same file can be selected again if needed
+    fileInput.value = '';
+    });
+    
+    // Handle paste events in the textarea
+    userMessage.addEventListener('paste', (event) => {
+    // Prevent the default paste behavior
+    event.preventDefault();
+    
+    // Get the clipboard data
+    const clipboardData = event.clipboardData || window.clipboardData;
+    const items = clipboardData.items;
+    
+    // Iterate through all clipboard items
+    for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    
+    // Check if the item is an image
+    if (item.type.indexOf('image') !== -1) {
+    const file = item.getAsFile();
+    if (file) {
+    // Assign a default name if the file doesn't have one
+    if (!file.name) {
+    file.name = `pasted_image_${Date.now()}.png`;
+    }
+    // Add the file to the attached files array
+    attachedFiles.push(file);
+    // Display the attachment thumbnail
+    displayAttachment(file);
+    // Alert the user with the attachment name
+    //alert(`Attached: ${file.name}`);
+    $("#chat-form").css("height", "110px");
+    }
+    } else {
+    // If it's not an image, insert the text as usual
+    const text = clipboardData.getData('text');
+    insertAtCursor(userMessage, text);
+    }
+    }
+    });
+    
+    // Function to handle and display files
+    function handleFiles(files) {
+    for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    attachedFiles.push(file);
+    displayAttachment(file);
+    $("#chat-form").css("height", "110px");
+    //alert(`Attached: ${file.name}`);
+    }
+    }
+    
+    // Function to display attachment thumbnails
+    function displayAttachment(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+    const img = document.createElement('img');
+    img.src = e.target.result;
+    img.title = file.name;
+    img.style.width = '50px';
+    img.style.height = '50px';
+    img.style.objectFit = 'cover';
+    img.style.marginRight = '5px';
+    img.style.borderRadius = '5px';
+    attachmentsDiv.appendChild(img);
+    }
+    reader.readAsDataURL(file);
+    }
+    
+    // Function to insert text at the cursor position in the textarea
+    function insertAtCursor(textArea, text) {
+    const start = textArea.selectionStart;
+    const end = textArea.selectionEnd;
+    const before = textArea.value.substring(0, start);
+    const after = textArea.value.substring(end, textArea.value.length);
+    textArea.value = before + text + after;
+    textArea.selectionStart = textArea.selectionEnd = start + text.length;
+    }
+    
+    </script>    
 
 <!-- Marked.js: For Markdown to HTML conversion -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -245,17 +372,27 @@
     }
 
     async function formatNodeWithRichText(node, content) {
-    // Ensure the node exists
     if (!node) throw new Error("Node is required");
 
-     // Escape LaTeX backslashes to avoid issues with Markdown parsing
-     content = content.replace(/\\/g, '\\\\');
+    // Step 1: Extract code blocks and replace them with placeholders
+    const codeBlocks = [];
+    content = content.replace(/```[\s\S]*?```/g, (match) => {
+        codeBlocks.push(match); // Store the full code block
+        return `__CODE_BLOCK_${codeBlocks.length - 1}__`; // Placeholder
+    });
 
-    // Import required libraries dynamically
+    // Step 2: Escape backslashes in the remaining text
+    content = content.replace(/\\/g, '\\\\');
+
+    // Step 3: Put the code blocks back unescaped
+    codeBlocks.forEach((block, index) => {
+        content = content.replace(`__CODE_BLOCK_${index}__`, block);
+    });
+
+    // Load libraries dynamically
     if (!window.marked) {
         const script = document.createElement('script');
         script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
-        script.onload = () => console.log("Markdown library loaded.");
         document.head.appendChild(script);
         await new Promise(resolve => script.onload = resolve);
     }
@@ -278,16 +415,12 @@
         await new Promise(resolve => script.onload = resolve);
     }
 
-    // Process content using Markdown
+    // Convert Markdown to HTML
     const htmlContent = marked.parse(content);
-
-    // Set the HTML content of the node
     node.innerHTML = htmlContent;
 
-    // Highlight code blocks using Prism
+    // Highlight code and render math
     Prism.highlightAllUnder(node);
-
-    // Render math formulas using MathJax
     if (window.MathJax) {
         window.MathJax.typesetPromise([node]).catch(err => console.error(err));
     }
@@ -299,8 +432,11 @@
         //displayAnswer("You", userMessage)
         $("#userMessage").val('');
         var fileInput = document.getElementById('attachment');
-        var file = fileInput.files[0];
-        if (file) {
+        var file = null;
+        if(fileInput!=null){
+            file = fileInput.files[0];
+        }
+        if (file && 0) {
             uploadImage(file).then(imageUrl => {
                 //displayAnswer("You", `![image](${imageUrl})`);
                 $("#attachment").val('');
@@ -311,19 +447,36 @@
                 makeRequest(userMessage, '');
             });
         } else {
+            attachedFiles.forEach((file, index) => {
+                //formData.append('attachment[]', file);
+                uploadImage(file).then(imageUrl => {
+                    //displayAnswer("You", `![image](${imageUrl})`);
+                    $("#attachment").val('');
+                    makeRequest(userMessage, imageUrl);
+                }).catch(error => {
+                    console.error("Error uploading image:", error);
+                    $("#attachment").val('');
+                    makeRequest(userMessage, '');
+                });
+            });
+            attachmentsDiv.innerHTML = '';
+            $("#chat-form").css("height", "60px");
             //displayAnswer(userMessage)
             $("#attachment").val('');
-            makeRequest(userMessage, '');
+            if(attachedFiles.length==0){
+                makeRequest(userMessage, '');
+                attachedFiles = [];
+            }
         }
     }
 
     function makeRequest(userMessage, imageUrl) {
+        setTimeout(()=>{$.get("https://gpt.shibatalks.com/api/conv/auto-title");}, 1000);
         var selectedModel = $("input[name='model']:checked").val();
         const s = window.location.pathname.split("/");
         if(s.length>=3 && s[s.length-2]=="conv"){
             const convId = s[s.length-1]
             //send a message to a conversation
-            //alert(convId)
             $.ajax({
                 type: "POST",
                 url: "/api/message/send", // Replace with your server URL
@@ -535,16 +688,35 @@ function connectWebSocket() {
                     modifyPath(newPath);
                 }
             } else if(json.action == "new_message") {
-                const s = window.location.pathname.split("/");
-                if(s.length >= 2 && s[s.length-2] == "conv" && s[s.length-1] == json.convId) {
-                    let author = json.author == window.account.id ? "You" : "GPT";
-                    displayAnswer(author, json.content);
+                if(Array.isArray(json.content)){
+                    for(let el of json.content){
+                        const s = window.location.pathname.split("/");
+                        if(s.length >= 2 && s[s.length-2] == "conv" && s[s.length-1] == json.convId) {
+                            let author = json.author == window.account.id ? "You" : "GPT";
+                            console.warn(el);
+                            console.log(author);
+                            console.log(el.content);
+                            if(el.type=="text"){
+                                displayAnswer(author, el.text);
+                            }else
+                            if(el.type=="image_url"){
+                                displayImgAnswer(author, el.image_url.url.replace("{CONFIG.SERVER_HOSTNAME}", window.location.protocol + "//" + window.location.hostname));
+                            }else{
+                                displayAnswer(author, el.content);
+                            }
+                        }
+                    }
+                }else{
+                    const s = window.location.pathname.split("/");
+                    if(s.length >= 2 && s[s.length-2] == "conv" && s[s.length-1] == json.convId) {
+                        let author = json.author == window.account.id ? "You" : "GPT";
+                        displayAnswer(author, json.content);
+                    }
                 }
             } else if(json.action == "new_message_img") {
                 const s = window.location.pathname.split("/");
                 if(s.length >= 2 && s[s.length-2] == "conv" && s[s.length-1] == json.convId) {
                     let author = json.author == window.account.id ? "You" : "GPT";
-                    console.log(json);
                     displayImgAnswer(author, json.content.replace("{CONFIG.SERVER_HOSTNAME}", window.location.protocol + "//" + window.location.hostname));
                 }
             }

@@ -209,10 +209,13 @@ z-index: 10;
     border-radius: 10px;
     margin-bottom:5px;
     position:relative;
+    overflow:hidden;
 }
 .conversation-tile label{
     padding:5px;
     width:calc(100% - 35px);
+    height: 15px;
+    overflow: hidden;
 }
 .deleteConv{
     width: 20px;

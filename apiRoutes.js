@@ -142,6 +142,82 @@ router.post('/conv/list', async (req, res) => {
   }
 });
 
+router.get('/conv/auto-title', async (req, res) => {
+  try {
+    const conversations = await Conversations.findAll({
+      where: sequelize.where(
+        sequelize.fn('lower', sequelize.col('title')),
+        'new conversation'
+      ),
+      include: [{
+        model: Messages,
+        as: 'Messages',
+        separate: true,
+        order: [['timestamp', 'ASC']],
+        limit: 1
+      }]
+    });
+
+    let updated = [];
+
+    for (const conv of conversations) {
+      const firstMsg = conv.Messages[0];
+      if (!firstMsg) continue;
+
+      let content;
+      try {
+        const parsed = JSON.parse(firstMsg.json);
+        content = parsed.content || '';
+      } catch {
+        continue;
+      }
+
+      if (!content.trim()) continue;
+
+      // Call OpenAI Chat API
+      const response = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a helpful assistant that generates short and descriptive short titles for conversation threads.'
+            },
+            {
+              role: 'user',
+              content: `Based on this message, create a suitable and short title (4 words max!) for the conversation, match the message language: "${content}"`
+            }
+          ],
+          max_tokens: 30,
+          temperature: 0.7
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const newTitle = response.data.choices[0].message.content.trim();
+
+      // Update the conversation title
+      conv.title = newTitle;
+      await conv.save();
+
+      updated.push({ convId: conv.id, newTitle });
+    }
+
+    res.status(200).json({ updated });
+
+  } catch (error) {
+    console.error('Error auto-titling conversations:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to auto-title conversations' });
+  }
+});
+
+
 router.get('/conv/load/:id', async (req, res) => {
   try {
     const accessToken = req.headers['authorization'].split(' ')[1];
@@ -187,9 +263,21 @@ router.post('/message/send', async (req, res) => {
           }
         ]}
       ]
+      ws_json = [
+        { role: 'user', content: [
+          { type: "text", text: userMessage },
+          {
+            type: "image_url",
+            image_url: {
+              "url": image,
+            }
+          }
+        ]}
+      ]
       messages.push(json[0], json[1]);
     } else {
       json = [{ role: 'user', content: userMessage }]
+      ws_json=json
       messages.push(json[0]);
     }
     for(let m of json){
@@ -204,7 +292,10 @@ router.post('/message/send', async (req, res) => {
     let ws_clients = wsClientManager.getClients();
     ws_clients.forEach(client => {
         if (client.readyState == WebSocket.OPEN && client.userId == userId) {
-            for(let m of json){
+          console.log("====================");
+          console.log(json);
+          console.log("====================");
+            for(let m of ws_json){
               client.send(JSON.stringify({
                 action:"new_message",
                 convId:convId,
@@ -222,7 +313,11 @@ router.post('/message/send', async (req, res) => {
         GPTModel = "gpt-4o";
       }else
       if (model == "o1-mini") {
-        GPTModel = "o1-mini";
+        GPTModel = "o1-mini"; // o1-preview o1-mini
+        messages.shift();
+      }else
+      if (model == "gpt-4o-mini") {
+        GPTModel = "gpt-4o-mini";
         messages.shift();
       }
       const response = await axios.post('https://api.openai.com/v1/chat/completions',
