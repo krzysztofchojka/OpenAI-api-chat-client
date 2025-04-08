@@ -178,11 +178,11 @@
     //alert(`Attached: ${file.name}`);
     $("#chat-form").css("height", "110px");
     }
-    } else {
-    // If it's not an image, insert the text as usual
+    } else if (i === 0) {
+    // Only insert text once
     const text = clipboardData.getData('text');
     insertAtCursor(userMessage, text);
-    }
+}
     }
     });
     
