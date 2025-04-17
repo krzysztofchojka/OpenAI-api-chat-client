@@ -246,7 +246,7 @@ router.post('/message/send', async (req, res) => {
     }
 
     const userId = tokenRecord.userId;
-    const { convId, userMessage, model, image } = req.body;
+    const { convId, userMessage, model, image, fileId } = req.body;
     let json;
 //If user wants a math equasion use LaTex and start with backslash bracket.
     let messages = [{ role: 'system', content: 'You are a helpful assistant. If user asks you to draw something start your reply EXACTLY like this: ![generate_image]and here write the image prompt for DALLE' }];
@@ -272,6 +272,32 @@ router.post('/message/send', async (req, res) => {
               "url": image,
             }
           }
+        ]}
+      ]
+      messages.push(json[0], json[1]);
+    }else
+    if (fileId) {
+      json = [
+        { role: 'user', content: userMessage },
+        { role: 'user', content: [
+          {
+            type: "file",
+            file: {
+              "file_id": fileId,
+            }
+          },
+          { type: "text", text: userMessage }
+        ]}
+      ]
+      ws_json = [
+        { role: 'user', content: [
+          {
+            type: "file",
+            file: {
+              "file_id": fileId,
+            }
+          },
+          { type: "text", text: userMessage }
         ]}
       ]
       messages.push(json[0], json[1]);

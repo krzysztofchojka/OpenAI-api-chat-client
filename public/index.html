@@ -97,7 +97,8 @@
     <form id="chat-form" enctype="multipart/form-data" onsubmit="sendRequest(event)">
         <div id="inputs" style="position: relative;">
         <!-- Hidden File Input -->
-        <input type="file" id="file-input" name="attachment[]" style="display:none;" accept="image/*" multiple>
+        <input type="file" id="file-input" 
+        name="attachment[]" style="display:none;" accept=".pdf,image/*" multiple>
         
         <!-- Attachments Display Area -->
         <div id="attachmentsDiv" style="width:100%; height: fit-content; max-height: 50px; display: flex; flex-wrap: nowrap; justify-content: left; overflow-x: auto; position: relative; bottom: 5px;">
@@ -119,7 +120,7 @@
         </div>
         
         <!-- Attachment Icon -->
-        <div onclick='document.getElementById("file-input").click();' style="cursor: pointer;">
+        <div onclick='document.getElementById("file-input").accept+=",.pdf";$("#file-input").on("change", AttButtChange);document.getElementById("file-input").click();' style="cursor: pointer;">
         <img src="/app/assets/icons/attachment-1575-svgrepo-com.svg" style="width:25px" class="icon" alt="Attach">
         </div>
         
@@ -426,6 +427,31 @@
     }
 }
 
+function uploadPdf(file) {
+return new Promise((resolve, reject) => {
+const formData = new FormData();
+formData.append('file', file); // Ensure the key 'file' matches your server-side expectation
+
+$.ajax({
+url: '/api/upload',
+type: 'POST',
+data: formData,
+processData: false, // Important for sending FormData
+contentType: false, // Important for sending FormData
+success: function(response) {
+if (response.fileUrl) {
+resolve(response);
+} else {
+reject('No file URL returned from server.');
+}
+},
+error: function(jqXHR, textStatus, errorThrown) {
+reject(errorThrown || textStatus);
+}
+});
+});
+}
+
     function sendRequest(event) {
         event.preventDefault();
         var userMessage = $("#userMessage").val();
@@ -448,16 +474,35 @@
             });
         } else {
             attachedFiles.forEach((file, index) => {
-                //formData.append('attachment[]', file);
-                uploadImage(file).then(imageUrl => {
-                    //displayAnswer("You", `![image](${imageUrl})`);
-                    $("#attachment").val('');
-                    makeRequest(userMessage, imageUrl);
-                }).catch(error => {
-                    console.error("Error uploading image:", error);
-                    $("#attachment").val('');
-                    makeRequest(userMessage, '');
-                });
+                console.warn(file.name.split(".").reverse()[0]);
+                if(file.name.split(".").reverse()[0]=="pdf"){
+                    //upload pdf file
+                    uploadPdf(file)
+                    .then(res => {
+                        console.log(res);
+                        // Handle the uploaded PDF URL as needed
+                        // For example, display a link to the PDF
+                        //displayAnswer("You", `<a href="${pdfUrl}" target="_blank">View PDF</a>`);
+                        $("#attachment").val('');
+                        makeRequest(userMessage, '', res.fileId);
+                    })
+                    .catch(error => {
+                        console.error("Error uploading PDF:", error);
+                        $("#attachment").val('');
+                        makeRequest(userMessage, '');
+                    });
+                }else{
+                    //upload image
+                    uploadImage(file).then(imageUrl => {
+                        //displayAnswer("You", `![image](${imageUrl})`);
+                        $("#attachment").val('');
+                        makeRequest(userMessage, imageUrl);
+                    }).catch(error => {
+                        console.error("Error uploading image:", error);
+                        $("#attachment").val('');
+                        makeRequest(userMessage, '');
+                    });
+                }
             });
             attachmentsDiv.innerHTML = '';
             $("#chat-form").css("height", "60px");
@@ -470,7 +515,7 @@
         }
     }
 
-    function makeRequest(userMessage, imageUrl) {
+    function makeRequest(userMessage, imageUrl="", fileId="") {
         setTimeout(()=>{$.get("https://gpt.shibatalks.com/api/conv/auto-title");}, 1000);
         var selectedModel = $("input[name='model']:checked").val();
         const s = window.location.pathname.split("/");
@@ -481,7 +526,7 @@
                 type: "POST",
                 url: "/api/message/send", // Replace with your server URL
                 contentType: "application/json",
-                data: JSON.stringify({ convId:convId, userMessage: userMessage, model: selectedModel, image: imageUrl }),
+                data: JSON.stringify({ convId:convId, userMessage: userMessage, model: selectedModel, image: imageUrl, fileId:fileId}),
                 headers: {
                     'Authorization': localStorage.getItem("accessToken")
                 },
@@ -780,7 +825,10 @@ function modifyPath(newPath){
                         }else
                         if(con.type=="image_url"){
                             displayImgAnswer(author, con.image_url.url.replace("{CONFIG.SERVER_HOSTNAME}", window.location.protocol+"//"+window.location.hostname))
-                        }  
+                        }else
+                        if(con.type=="file"){
+                            displayAnswer(author, `<div style="display:flex;padding-top:10px;"><img src="/app/assets/icons/file-svgrepo-com.svg" style="width:40px;margin-right:5px;filter: invert(1);"/><span>${con.file.file_id}</span></div>`)
+                        }
                     }             
                 }
                 $("#chat").scrollTop(document.querySelector("#chat").scrollHeight)
@@ -794,7 +842,12 @@ function modifyPath(newPath){
         $("#chat").html();
     }
 }
-
+function AttButtChange(){
+    let input = document.querySelector("#file-input");
+    for(let el of input.files){
+        attachedFiles.push(el);
+    }
+}
 </script>
 </body>
 </html>
