@@ -63,13 +63,16 @@
                 <input type="radio" name="model" value="gpt-3.5-turbo"> GPT-3.5
             </label-->
             <label>
-                <input type="radio" name="model" value="gpt-4o-mini" checked> 4o-mini
+                <input type="checkbox" name="memory" onClick="chMemory(event)"> Memory
             </label>
             <label>
-                <input type="radio" name="model" value="gpt-4o" > GPT-4o
+                <input type="radio" name="model" value="gpt-4o-mini"> 4o-mini
             </label>
             <label>
-                <input type="radio" name="model" value="o1-mini"> o1-mini
+                <input type="radio" name="model" value="gpt-4.1" checked> GPT-4.1
+            </label>
+            <label>
+                <input type="radio" name="model" value="o4-mini"> o4-mini
             </label>
         </div>
     </nav>
@@ -133,6 +136,15 @@
 </main>
 
 <script>
+    let sendMsgEndpoint = "/api/message/send"
+    function chMemory(event){
+        let checked=event.target.checked;
+        if(checked){
+            sendMsgEndpoint = "/api/message/hsend"
+        }else{
+            sendMsgEndpoint = "/api/message/send"
+        }
+    }
     // Array to hold the attached files
     let attachedFiles = [];
     
@@ -524,7 +536,7 @@ reject(errorThrown || textStatus);
             //send a message to a conversation
             $.ajax({
                 type: "POST",
-                url: "/api/message/send", // Replace with your server URL
+                url: sendMsgEndpoint, // Replace with your server URL
                 contentType: "application/json",
                 data: JSON.stringify({ convId:convId, userMessage: userMessage, model: selectedModel, image: imageUrl, fileId:fileId}),
                 headers: {

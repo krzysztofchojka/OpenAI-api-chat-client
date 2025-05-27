@@ -236,6 +236,144 @@ router.get('/conv/load/:id', async (req, res) => {
   }
 });
 
+router.post('/message/hsend', async (req, res) => {
+  try {
+  // 1. Authenticate
+  const auth = req.headers['authorization'];
+  if (!auth) return res.status(401).json({ error: 'No token' });
+  const accessToken = auth.split(' ')[1];
+  const tokenRecord = await Token.findOne({ where: { token: accessToken } });
+  if (!tokenRecord) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = tokenRecord.userId;
+  
+  // 2. Pull parameters
+  const { convId, userMessage, model, image, fileId } = req.body;
+  if (!convId || !userMessage) {
+  return res.status(400).json({ error: 'convId and userMessage are required' });
+  }
+  
+  // 3. Build your system prompt
+  const systemPrompt = {
+  role: 'system',
+  content: 'You are a helpful assistant. If the user asks you to draw something start your reply EXACTLY like this: ![generate_image]and here write the image prompt for DALLE'
+  };
+  
+  // 4. Load prior messages from the database
+  // (you can limit how many you fetch for context-length reasons)
+  const historyRows = await Messages.findAll({
+  where: { convId },
+  order: [['createdAt', 'ASC']], // oldest → newest
+  limit: 50 // optional: only keep last N
+  });
+  
+  // 5. Reconstruct the messages array
+  const history = historyRows.map(r => JSON.parse(r.json));
+  // history items must be { role: 'user'|'assistant', content: ... }
+  const messages = [ systemPrompt, ...history ];
+  
+  // 6. Append the new user message (handling image/file if needed)
+  if (image) {
+  messages.push({
+  role: 'user',
+  content: [
+  { type: 'text', text: userMessage },
+  { type: 'image_url', image_url: { url: image } }
+  ]
+  });
+  }
+  else if (fileId) {
+  messages.push({
+  role: 'user',
+  content: [
+  { type: 'file', file: { file_id: fileId } },
+  { type: 'text', text: userMessage }
+  ]
+  });
+  }
+  else {
+  messages.push({ role: 'user', content: userMessage });
+  }
+  
+  // 7. Persist the user message(s) to your DB
+  // (flatten arrays if you prefer one row per composite message)
+  for (const msg of messages.slice(-1)) {
+  await Messages.create({
+  userId,
+  convId,
+  type: 'text',
+  json: JSON.stringify(msg)
+  });
+  }
+
+  let ws_clients0 = wsClientManager.getClients();
+    ws_clients0.forEach(client => {
+        if (client.readyState == WebSocket.OPEN && client.userId == userId) {
+            for(let m of messages.slice(-1)){
+              client.send(JSON.stringify({
+                action:"new_message",
+                convId:convId,
+                author:userId,
+                content:m.content
+              }))
+            }
+        }
+    });
+
+  
+  // 8. Call OpenAI with your full context
+  let GPTModel = model || 'gpt-3.5-turbo';
+  // ... handle your model mapping here ...
+  const response = await axios.post(
+  'https://api.openai.com/v1/chat/completions',
+  { model: GPTModel, messages },
+  { headers: { Authorization: `Bearer ${OPENAI_API_KEY}` } }
+  );
+  
+  const answer = response.data.choices[0].message;
+  
+  // 9. Persist the assistant’s reply
+  await Messages.create({
+  userId: null,
+  convId,
+  type: answer.content.startsWith('![') ? 'image_url' : 'text',
+  json: JSON.stringify(answer)
+  });
+  
+  // 10. Broadcast via WebSocket
+  const ws_clients = wsClientManager.getClients();
+  ws_clients.forEach(client => {
+    if (client.readyState == WebSocket.OPEN && client.userId == userId) {
+      if (answer.content.startsWith('![generate_image]')) {
+        // handle image generation flow…
+        client.send(JSON.stringify({
+        action: 'new_message_img',
+        convId,
+        author: 'GPT',
+        content: answer.content.replace('![generate_image]', '').trim()
+        }));
+      }
+      else {
+        console.log("");
+        console.log(answer);
+        console.log("2^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+        client.send(JSON.stringify({
+          action: 'new_message',
+          convId,
+          author: 'GPT',
+          content: answer.content
+        }));
+      }
+    }
+  });
+
+  res.status(200).json({ success: true });
+  }
+  catch (err) {
+  console.error(err);
+  res.status(500).json({ error: 'Internal Server Error' });
+  }
+  });
+
 router.post('/message/send', async (req, res) => {
   try {
     const accessToken = req.headers['authorization'].split(' ')[1]; // Assuming the token is passed as a Bearer token
@@ -338,9 +476,12 @@ router.post('/message/send', async (req, res) => {
       if (model == "gpt-4o") {
         GPTModel = "gpt-4o";
       }else
-      if (model == "o1-mini") {
-        GPTModel = "o1-mini"; // o1-preview o1-mini
-        messages.shift();
+      if(model == "gpt-4.1") {
+        GPTModel = "gpt-4.1";
+      }else
+      if (model == "o4-mini") {
+        GPTModel = "o4-mini"; // o1-preview o1-mini o4-mini
+        //messages.shift();
       }else
       if (model == "gpt-4o-mini") {
         GPTModel = "gpt-4o-mini";
@@ -528,7 +669,7 @@ router.post('/ask', checkAccessToken, async (req, res) => {
       GPTModel = "gpt-4o";
     }
 
-    let messages = [{ role: 'system', content: 'You are a helpful assistant. If user asks you to draw something start your reply EXACTLY like this: ![generate_image]and here write the image prompt for DALLE' }];
+    let messages = [{ role: 'system', content: 'You are a helpful assistant. Write math equasions in LaTeX format! If user asks you to draw something start your reply EXACTLY like this: ![generate_image]and here write the image prompt for DALLE' }];
     if (image) {
       messages.push(
         { role: 'user', content: userMessage },
