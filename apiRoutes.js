@@ -483,6 +483,10 @@ router.post('/message/send', async (req, res) => {
         GPTModel = "o4-mini"; // o1-preview o1-mini o4-mini
         //messages.shift();
       }else
+      if (model == "gpt-5") {
+        GPTModel = "gpt-5-2025-08-07"; // o1-preview o1-mini o4-mini
+        //messages.shift();
+      }else
       if (model == "gpt-4o-mini") {
         GPTModel = "gpt-4o-mini";
         messages.shift();
